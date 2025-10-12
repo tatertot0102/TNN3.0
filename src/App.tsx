@@ -1,5 +1,6 @@
 // src/App.tsx
 import React, { useState, useEffect, useMemo } from "react";
+import { Routes, Route, useLocation } from "react-router-dom";
 import {
   Flame,
   PlayCircle,
@@ -15,9 +16,11 @@ import {
   Sparkles,
   ShieldCheck,
   BarChart3,
+  Bell,
 } from "lucide-react";
 import logo from "./assets/logo.svg";
 import "./index.css";
+import InfoPage from "./InfoPage";
 
 
 /* ===============================
@@ -44,8 +47,65 @@ type Category = (typeof CATEGORIES)[number];
    HEADER (Collapsible)
 ================================== */
 const Header: React.FC = () => {
+  const location = useLocation();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Notification structure: must have unique id (number or string)
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      title: "TNN is currently in beta",
+      message:
+        "All stories, videos, and data are placeholders as we finalize our new platform experience.",
+      read: false,
+    },
+  ]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastTimeout, setToastTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  // Notification toast logic with localStorage persistence
+  useEffect(() => {
+    // Only run after notifications are initialized
+    const newest = notifications[0];
+    if (!newest) return;
+    const storedId = localStorage.getItem("lastSeenNotificationId");
+    // If the newest notification's id is not the stored one, show toast and mark as unread
+    if (String(newest.id) !== storedId) {
+      // Mark as unread if not already
+      if (newest.read) {
+        setNotifications((prev) =>
+          prev.map((n, i) =>
+            i === 0 ? { ...n, read: false } : n
+          )
+        );
+      }
+      setShowToast(true);
+      if (toastTimeout) clearTimeout(toastTimeout);
+      const timeout = setTimeout(() => setShowToast(false), 5000);
+      setToastTimeout(timeout);
+    } else {
+      // Already seen, ensure notification marked as read and do not show toast
+      if (!newest.read) {
+        setNotifications((prev) =>
+          prev.map((n, i) =>
+            i === 0 ? { ...n, read: true } : n
+          )
+        );
+      }
+      setShowToast(false);
+    }
+    // eslint-disable-next-line
+    // Only run when notifications[0]?.id changes or notifications[0]?.read changes
+  }, [notifications[0]?.id]);
+
+  useEffect(() => {
+    // Ensure that if notification is marked as read (e.g., via Dismiss or Mark all read), update localStorage
+    const newest = notifications[0];
+    if (newest && newest.read) {
+      localStorage.setItem("lastSeenNotificationId", String(newest.id));
+    }
+  }, [notifications[0]?.read, notifications[0]?.id]);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
@@ -53,106 +113,305 @@ const Header: React.FC = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  return (
-    <header
-      className={`fixed top-0 z-50 w-full transition-all duration-500 ${
-        scrolled
-          ? "bg-white/90 dark:bg-[#0b0f1a]/90 backdrop-blur border-b border-gray-200 dark:border-neutral-800 h-[60px]"
-          : "bg-white dark:bg-[#0b0f1a] h-[120px]"
-      }`}
-    >
-      <div className="w-full px-6 lg:px-12 flex flex-col justify-center h-full">
-        {/* Top Row */}
-        <div
-          className={`flex items-center justify-between transition-all duration-500 ${
-            scrolled ? "h-[60px]" : "h-[80px]"
-          }`}
-        >
-          {/* Left: Navigation */}
-          <nav className="flex items-center gap-6">
-            <button
-              className="md:hidden text-gray-700 dark:text-gray-200"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Toggle menu"
-            >
-              {menuOpen ? <X /> : <Menu />}
-            </button>
+  // Count of unread notifications
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-            <div className="hidden md:flex items-center gap-6">
-              {["Home", "Info", "Join"].map((item) => (
+  // Mark all notifications as read and update localStorage
+  const markAllRead = () => {
+    setNotifications((prev) => {
+      if (prev.length === 0) return prev;
+      // Update localStorage with newest notification id
+      localStorage.setItem("lastSeenNotificationId", String(prev[0].id));
+      return prev.map((n) => ({ ...n, read: true }));
+    });
+    setShowToast(false);
+  };
+
+  // Info page section links for lower bar
+  const infoSections = [
+    { label: "Overview", id: "overview" },
+    { label: "Filming", id: "filming" },
+    { label: "Story Types", id: "story-types" },
+    { label: "Team", id: "team" },
+    { label: "Join", id: "join" },
+  ];
+
+  return (
+    <>
+      <header
+        className={
+          [
+            "fixed top-0 z-50 w-full transition-all duration-500",
+            scrolled
+              ? "bg-white/90 dark:bg-[#0b0f1a]/90 backdrop-blur border-b border-gray-200 dark:border-neutral-800"
+              : "bg-white dark:bg-[#0b0f1a]",
+            // Responsive header height
+            scrolled
+              ? "h-[56px] sm:h-[60px]"
+              : "h-[64px] sm:h-[80px] md:h-[120px]",
+          ].join(" ")
+        }
+      >
+        <div className="w-full px-4 sm:px-6 lg:px-12 flex flex-col justify-center h-full">
+          {/* Top Row */}
+          <div
+            className={
+              [
+                "flex items-center justify-between transition-all duration-500",
+                scrolled
+                  ? "h-[56px] sm:h-[60px]"
+                  : "h-[64px] sm:h-[80px] md:h-[100px]",
+              ].join(" ")
+            }
+          >
+            {/* Left: Navigation */}
+            <nav className="flex items-center gap-4 sm:gap-6">
+              <button
+                className="md:hidden text-gray-700 dark:text-gray-200"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Toggle menu"
+              >
+                {menuOpen ? <X className="h-6 w-6 sm:h-7 sm:w-7" /> : <Menu className="h-6 w-6 sm:h-7 sm:w-7" />}
+              </button>
+
+              <div className="hidden md:flex items-center gap-6">
                 <a
-                  key={item}
+                  href="/TNN3.0/"
+                  className="text-sm font-medium text-gray-800 dark:text-gray-300 hover:text-[#c2122b] transition-colors"
+                >
+                  Home
+                </a>
+                <a
+                  href="/TNN3.0/info"
+                  className="text-sm font-medium text-gray-800 dark:text-gray-300 hover:text-[#c2122b] transition-colors"
+                >
+                  Info
+                </a>
+                <a
                   href="#"
                   className="text-sm font-medium text-gray-800 dark:text-gray-300 hover:text-[#c2122b] transition-colors"
                 >
-                  {item}
+                  Join
                 </a>
-              ))}
+              </div>
+            </nav>
+
+            {/* Center: Logo */}
+            <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
+              <img
+                src={logo}
+                alt="TNN"
+                className={[
+                  "transition-all duration-300 object-contain",
+                  // Responsive logo shrink
+                  scrolled
+                    ? "h-10 sm:h-16 md:h-24"
+                    : "h-16 sm:h-20 md:h-24",
+                ].join(" ")}
+                style={{
+                  transitionProperty: "height, max-height, min-height",
+                  willChange: "height",
+                }}
+              />
             </div>
-          </nav>
 
-          {/* Center: Logo */}
-          <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
-            <img
-              src={logo}
-              alt="TNN"
-              className={`transition-all ${scrolled ? "h-32" : "h-56"} object-contain`}
-            />
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 sm:gap-3 md:gap-4 relative flex-nowrap">
+              {/* Search button */}
+              <button
+                className="inline-flex items-center justify-center rounded-md text-gray-700 dark:text-gray-300 hover:text-[#c2122b] transition-colors h-8 w-8 sm:h-8 sm:w-8 md:h-9 md:w-9"
+                aria-label="Search"
+              >
+                <Search className="h-[17px] w-[17px] sm:h-[18px] sm:w-[18px] md:h-[19px] md:w-[19px]" />
+              </button>
+              {/* Notification bell */}
+              <div className="relative">
+                <button
+                  className="inline-flex items-center justify-center rounded-md text-gray-700 dark:text-gray-300 hover:text-[#c2122b] transition-colors h-8 w-8 sm:h-8 sm:w-8 md:h-9 md:w-9 focus:outline-none"
+                  aria-label="Notifications"
+                  onClick={() => setShowNotifications((v) => !v)}
+                >
+                  <Bell className="h-[18px] w-[18px] sm:h-[19px] sm:w-[19px] md:h-[20px] md:w-[20px]" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white dark:ring-[#0b0f1a] animate-pulse" />
+                  )}
+                </button>
+                {/* Dropdown */}
+                {showNotifications && (
+                  <div
+                    className="absolute right-0 mt-2 w-80 max-w-xs bg-white dark:bg-[#181b22] shadow-xl border border-gray-200 dark:border-neutral-800 rounded-lg z-50 animate-fadein"
+                    style={{ minWidth: "260px" }}
+                  >
+                    <div className="p-3 border-b border-gray-100 dark:border-neutral-800 flex items-center justify-between">
+                      <span className="font-semibold text-gray-900 dark:text-white text-sm">
+                        Notifications
+                      </span>
+                      <button
+                        className="text-xs text-[#c2122b] hover:underline font-semibold"
+                        onClick={markAllRead}
+                        disabled={unreadCount === 0}
+                      >
+                        Mark all read
+                      </button>
+                    </div>
+                    <div className="max-h-72 overflow-y-auto">
+                      {notifications.length === 0 ? (
+                        <div className="px-4 py-6 text-sm text-gray-500 text-center">
+                          No notifications.
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`px-4 py-3 border-b last:border-b-0 border-gray-100 dark:border-neutral-800 ${
+                              !n.read ? "bg-[#fff4f5] dark:bg-[#2a1a1e]" : ""
+                            }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  n.read ? "bg-gray-300 dark:bg-neutral-700" : "bg-red-500 animate-pulse"
+                                }`}
+                              />
+                              <span className="font-semibold text-gray-900 dark:text-white text-sm">
+                                {n.title}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                              {n.message}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+              {/* Subscribe button */}
+              <a
+                href="#"
+                className="hidden sm:inline-flex items-center gap-2 px-3 sm:px-4 h-8 sm:h-9 rounded-md bg-[#c2122b] text-white text-xs sm:text-sm font-semibold hover:bg-red-700 transition-colors shadow-sm"
+              >
+                Subscribe
+              </a>
+            </div>
           </div>
 
-          {/* Right: Actions */}
-          <div className="flex items-center gap-3">
-            <button
-              className="inline-flex items-center justify-center rounded-md text-gray-700 dark:text-gray-300 hover:text-[#c2122b] transition-colors h-8 w-8"
-              aria-label="Search"
-            >
-              <Search className="h-[18px] w-[18px]" />
-            </button>
-            <a
-              href="#"
-              className="hidden sm:inline-flex items-center gap-2 px-4 h-9 rounded-md bg-[#c2122b] text-white text-sm font-semibold hover:bg-red-700 transition-colors shadow-sm"
-            >
-              Subscribe
-            </a>
-          </div>
+          {/* Lower Dynamic Bar: categories or InfoPage sections */}
+          {!scrolled && (
+            <div className="flex justify-center border-t border-gray-200 dark:border-neutral-800 pt-2 mt-2">
+              {location.pathname === "/TNN3.0/info" ? (
+                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {infoSections.map((section) => (
+                    <a
+                      key={section.id}
+                      href={`#${section.id}`}
+                      className="relative group transition-colors hover:text-[#c2122b]"
+                    >
+                      {section.label}
+                      <span className="absolute -bottom-1 left-0 w-0 group-hover:w-full h-[2px] bg-[#c2122b] transition-all duration-300"></span>
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex flex-wrap justify-center gap-4 sm:gap-6 text-xs sm:text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {CATEGORIES.map((cat) => (
+                    <a
+                      key={cat}
+                      href="#catalog"
+                      className="relative group transition-colors hover:text-[#c2122b]"
+                    >
+                      {cat}
+                      <span className="absolute -bottom-1 left-0 w-0 group-hover:w-full h-[2px] bg-[#c2122b] transition-all duration-300"></span>
+                    </a>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Lower Category Bar (only when not collapsed) */}
-        {!scrolled && (
-          <div className="flex justify-center border-t border-gray-200 dark:border-neutral-800 pt-2 mt-2">
-            <div className="flex flex-wrap justify-center gap-6 text-sm font-medium text-gray-700 dark:text-gray-300">
+        {/* Mobile Menu */}
+        {menuOpen && (
+          <div className="md:hidden bg-white dark:bg-[#0b0f1a] border-t border-gray-200 dark:border-neutral-800 py-3">
+            <div className="flex flex-col items-center gap-1">
+              <a
+                href="/TNN3.0/"
+                className="w-full py-3 px-4 text-center text-gray-700 dark:text-gray-200 hover:text-[#c2122b] text-sm rounded transition-all active:bg-gray-100 dark:active:bg-neutral-900"
+                style={{ minHeight: "44px" }}
+                onClick={() => setMenuOpen(false)}
+              >
+                Home
+              </a>
+              <a
+                href="/TNN3.0/info/"
+                className="w-full py-3 px-4 text-center text-gray-700 dark:text-gray-200 hover:text-[#c2122b] text-sm rounded transition-all active:bg-gray-100 dark:active:bg-neutral-900"
+                style={{ minHeight: "44px" }}
+                onClick={() => setMenuOpen(false)}
+              >
+                Info
+              </a>
+              <a
+                href="#"
+                className="w-full py-3 px-4 text-center text-gray-700 dark:text-gray-200 hover:text-[#c2122b] text-sm rounded transition-all active:bg-gray-100 dark:active:bg-neutral-900"
+                style={{ minHeight: "44px" }}
+              >
+                Join
+              </a>
               {CATEGORIES.map((cat) => (
                 <a
                   key={cat}
                   href="#catalog"
-                  className="relative group transition-colors hover:text-[#c2122b]"
+                  className="w-full py-3 px-4 text-center text-gray-700 dark:text-gray-200 hover:text-[#c2122b] text-sm rounded transition-all active:bg-gray-100 dark:active:bg-neutral-900"
+                  style={{ minHeight: "44px" }}
                 >
                   {cat}
-                  <span className="absolute -bottom-1 left-0 w-0 group-hover:w-full h-[2px] bg-[#c2122b] transition-all duration-300"></span>
                 </a>
               ))}
             </div>
           </div>
         )}
-      </div>
-
-      {/* Mobile Menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-white dark:bg-[#0b0f1a] border-t border-gray-200 dark:border-neutral-800 py-3">
-          <div className="flex flex-col items-center gap-3">
-            {["Home", "Info", "Join", ...CATEGORIES].map((item) => (
-              <a
-                key={item}
-                href={CATEGORIES.includes(item as Category) ? "#catalog" : "#"}
-                className="text-gray-700 dark:text-gray-200 hover:text-[#c2122b]"
-              >
-                {item}
-              </a>
-            ))}
+      </header>
+      {/* Toast notification */}
+      {showToast && notifications[0] && !notifications[0].read && (
+        <div
+          className="fixed bottom-7 left-1/2 transform -translate-x-1/2 z-[100] animate-fadein transition-all"
+          style={{ minWidth: 320, maxWidth: 400 }}
+        >
+          <div className="flex items-start gap-3 bg-white dark:bg-[#181b22] border border-[#c2122b] shadow-2xl px-5 py-4 rounded-xl">
+            <div className="pt-1">
+              <Bell className="w-6 h-6 text-[#c2122b]" />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-gray-900 dark:text-white text-sm">
+                {notifications[0].title}
+              </div>
+              <div className="text-xs text-gray-700 dark:text-gray-300 mt-1">
+                {notifications[0].message}
+              </div>
+            </div>
+            <button
+              className="ml-2 text-xs px-2 py-1 rounded text-[#c2122b] hover:bg-[#ffd7db] dark:hover:bg-[#2a1a1e] transition"
+              onClick={markAllRead}
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}
-    </header>
+      {/* Animations */}
+      <style>
+        {`
+        @keyframes fadein {
+          from { opacity: 0; transform: translateY(30px);}
+          to { opacity: 1; transform: translateY(0);}
+        }
+        .animate-fadein {
+          animation: fadein 0.5s cubic-bezier(.4,0,.2,1);
+        }
+        `}
+      </style>
+    </>
   );
 };
 
@@ -160,7 +419,7 @@ const Header: React.FC = () => {
    BREAKING TICKER
 ================================== */
 const BreakingTicker: React.FC = () => (
-  <div className="bg-[#0b0f1a] text-white py-2 mt-[120px] overflow-hidden border-b border-[#c2122b]/40">
+  <div className="bg-[#0b0f1a] text-white py-2 mt-[64px] sm:mt-[80px] md:mt-[120px] overflow-hidden border-b border-[#c2122b]/40">
     <div className="flex items-center gap-4 px-6">
       <span className="text-[#c2122b] font-semibold tracking-wider text-sm flex items-center gap-1">
         <Flame className="h-4 w-4" /> BREAKING
@@ -957,33 +1216,6 @@ const Footer: React.FC = () => (
   </footer>
 );
 
-/* ===============================
-   APP ROOT
-================================== */
-const App: React.FC = () => {
-  useEffect(() => {
-    document.documentElement.style.scrollBehavior = "smooth";
-    return () => {
-      document.documentElement.style.scrollBehavior = "auto";
-    };
-  }, []);
-  return (
-    <div className="font-['Inter'] bg-gray-50 dark:bg-[#0b0f1a] text-gray-800 dark:text-gray-100">
-      <Header />
-      <BreakingTicker />
-      <Hero />
-      <TrendingLeaderboard />
-      <Partnerships />
-      <DynamicComments />
-      <MissionStatement />
-      <CatalogSection />
-      <Newsletter />
-      <Footer />
-    </div>
-  );
-};
-
-export default App;
 
 /* ===============================
    TRENDING LEADERBOARD (Horizontal)
@@ -992,7 +1224,7 @@ const TrendingLeaderboard: React.FC = () => {
   // Flatten all videos and sort by views descending
   const allVideos: VideoItem[] = Object.values(catalogData).flat();
   const trending = [...allVideos]
-    .filter(v => typeof v.views === "number")
+    .filter((v) => typeof v.views === "number")
     .sort((a, b) => (b.views ?? 0) - (a.views ?? 0))
     .slice(0, 10);
 
@@ -1004,19 +1236,23 @@ const TrendingLeaderboard: React.FC = () => {
   ];
 
   return (
-    <section className="bg-[#15171e] dark:bg-[#181b22] py-8 px-0 border-b border-gray-200 dark:border-neutral-800">
-      <div className="px-6 flex items-center justify-between mb-4">
-        <h2 className="text-xl md:text-2xl font-serif font-extrabold text-white">
+    <section className="bg-[#15171e] dark:bg-[#181b22] py-5 sm:py-8 px-0 border-b border-gray-200 dark:border-neutral-800">
+      <div className="px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between mb-3 sm:mb-4 gap-2">
+        <h2 className="text-lg sm:text-xl md:text-2xl font-serif font-extrabold text-white">
           Trending Leaderboard
         </h2>
-        <span className="text-xs text-[#ffd7db] font-semibold uppercase tracking-widest">
+        <span className="text-xs sm:text-xs text-[#ffd7db] font-semibold uppercase tracking-widest">
           Top {trending.length} Videos
         </span>
       </div>
+      {/* Swipe hint for mobile */}
+      <div className="block sm:hidden px-4 pb-2 text-xs text-white/60 font-medium select-none">
+        <span className="animate-pulse">Swipe to explore →</span>
+      </div>
       <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-[#c2122b]/60 scrollbar-track-transparent">
         <div
-          className="flex gap-6 md:gap-8 px-6 pb-2 snap-x snap-mandatory"
-          style={{ WebkitOverflowScrolling: "touch" }}
+          className="flex gap-3 sm:gap-6 md:gap-8 px-3 sm:px-6 pb-2 snap-x snap-mandatory scroll-smooth"
+          style={{ WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}
         >
           {trending.map((video, idx) => (
             <a
@@ -1025,37 +1261,45 @@ const TrendingLeaderboard: React.FC = () => {
               target="_blank"
               rel="noopener noreferrer"
               className={
-                "snap-center group relative flex-shrink-0 w-64 md:w-72 cursor-pointer bg-[#181b22] rounded-2xl overflow-hidden border-2 transition-transform duration-200 hover:scale-105 " +
+                "snap-center group relative flex-shrink-0 w-44 sm:w-56 md:w-72 cursor-pointer bg-[#181b22] rounded-xl sm:rounded-2xl overflow-hidden border-2 transition-transform duration-200 hover:scale-105 " +
                 (accentGlows[idx] || "border-transparent")
               }
               style={{
-                minHeight: "248px",
+                minWidth: "11.5rem", // 184px (w-44)
+                maxWidth: "18rem",   // 288px (w-72)
+                width: "clamp(11.5rem, 35vw, 18rem)",
+                minHeight: "190px",
               }}
             >
               <img
                 src={video.thumb}
                 alt={video.title}
-                className="w-full h-40 object-cover opacity-90 group-hover:opacity-100 transition duration-300"
+                className="w-full h-28 sm:h-36 md:h-40 object-cover opacity-90 group-hover:opacity-100 transition duration-300"
                 loading="lazy"
+                style={{
+                  height: "clamp(7rem, 22vw, 10rem)" // 112px-160px
+                }}
               />
               {/* Ranking badge */}
-              <div className={`absolute top-3 left-3 flex items-center justify-center rounded-full w-9 h-9 font-extrabold text-lg ${
-                idx === 0
-                  ? "bg-[#c2122b] text-white shadow-lg"
-                  : idx === 1
-                  ? "bg-[#ffd7db] text-[#c2122b] shadow"
-                  : idx === 2
-                  ? "bg-[#fff1f3] text-[#c2122b] shadow"
-                  : "bg-black/70 text-white"
-              }`}>
+              <div
+                className={`absolute top-2 left-2 flex items-center justify-center rounded-full w-7 h-7 sm:w-9 sm:h-9 font-extrabold text-base sm:text-lg ${
+                  idx === 0
+                    ? "bg-[#c2122b] text-white shadow-lg"
+                    : idx === 1
+                    ? "bg-[#ffd7db] text-[#c2122b] shadow"
+                    : idx === 2
+                    ? "bg-[#fff1f3] text-[#c2122b] shadow"
+                    : "bg-black/70 text-white"
+                }`}
+              >
                 #{idx + 1}
               </div>
               {/* Info overlay */}
-              <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent">
-                <h3 className="text-base font-serif font-bold text-white line-clamp-2">
+              <div className="absolute inset-x-0 bottom-0 p-2 sm:p-4 bg-gradient-to-t from-black/80 via-black/30 to-transparent">
+                <h3 className="text-sm sm:text-base font-serif font-bold text-white line-clamp-2">
                   {video.title}
                 </h3>
-                <div className="flex items-center gap-2 text-xs text-white/80 mt-1">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-[11px] sm:text-xs text-white/80 mt-0.5 sm:mt-1">
                   <span>{video.category}</span>
                   <span>•</span>
                   <span>{kFmt(video.views)} views</span>
@@ -1069,8 +1313,8 @@ const TrendingLeaderboard: React.FC = () => {
               </div>
               {/* Hover Play Icon */}
               <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                <div className="w-12 h-12 bg-[#c2122b]/90 rounded-full flex items-center justify-center">
-                  <PlayCircle className="text-white w-7 h-7" />
+                <div className="w-9 h-9 sm:w-12 sm:h-12 bg-[#c2122b]/90 rounded-full flex items-center justify-center">
+                  <PlayCircle className="text-white w-5 h-5 sm:w-7 sm:h-7" />
                 </div>
               </div>
             </a>
@@ -1464,3 +1708,41 @@ const MissionStatement: React.FC = () => (
     </div>
   </section>
 )
+
+/* ===============================
+   APP ROOT
+================================== */
+// HomeContent component containing homepage sections
+const HomeContent: React.FC = () => (
+  <div className="font-['Inter'] bg-gray-50 dark:bg-[#0b0f1a] text-gray-800 dark:text-gray-100">
+    <BreakingTicker />
+    <Hero />
+    <TrendingLeaderboard />
+    <Partnerships />
+    <DynamicComments />
+    <MissionStatement />
+    <CatalogSection />
+    <Newsletter />
+    <Footer />
+  </div>
+);
+
+const App: React.FC = () => {
+  useEffect(() => {
+    document.documentElement.style.scrollBehavior = "smooth";
+    return () => {
+      document.documentElement.style.scrollBehavior = "auto";
+    };
+  }, []);
+  return (
+    <>
+      <Header />
+      <Routes>
+        <Route path="/" element={<HomeContent />} />
+        <Route path="/info" element={<InfoPage />} />
+      </Routes>
+    </>
+  );
+};
+
+export default App;
