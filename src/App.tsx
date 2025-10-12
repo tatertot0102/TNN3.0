@@ -182,7 +182,7 @@ const Header: React.FC = () => {
                   Home
                 </a>
                 <a
-                  href="/TNN3.0/info"
+                  href="/TNN3.0/#/info"
                   className="text-sm font-medium text-gray-800 dark:text-gray-300 hover:text-[#c2122b] transition-colors"
                 >
                   Info
@@ -200,17 +200,13 @@ const Header: React.FC = () => {
             <div className="absolute left-1/2 transform -translate-x-1/2 flex items-center">
               <img
                 src={logo}
-                alt="TNN"
-                className={[
-                  "transition-all duration-300 object-contain",
-                  // Responsive logo shrink
-                  scrolled
-                    ? "h-10 sm:h-16 md:h-24"
-                    : "h-16 sm:h-20 md:h-24",
-                ].join(" ")}
+                alt="TNN Logo"
+                className={`transition-all duration-300 object-contain ${
+                  scrolled ? "w-16" : "w-28"
+                }`}
                 style={{
-                  transitionProperty: "height, max-height, min-height",
-                  willChange: "height",
+                  transitionProperty: "width, max-width, min-width",
+                  willChange: "width",
                 }}
               />
             </div>
@@ -344,7 +340,7 @@ const Header: React.FC = () => {
                 Home
               </a>
               <a
-                href="/TNN3.0/info/"
+                href="/TNN3.0/#/info/"
                 className="w-full py-3 px-4 text-center text-gray-700 dark:text-gray-200 hover:text-[#c2122b] text-sm rounded transition-all active:bg-gray-100 dark:active:bg-neutral-900"
                 style={{ minHeight: "44px" }}
                 onClick={() => setMenuOpen(false)}
