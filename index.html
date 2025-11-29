@@ -46,6 +46,13 @@
     history.replaceState(null, null, redirectUrl);
   }
 </script>
+<script>
+  if (sessionStorage.redirect) {
+    const redirectUrl = sessionStorage.redirect;
+    sessionStorage.removeItem("redirect");
+    history.replaceState(null, null, redirectUrl);
+  }
+</script>
     <script type="module" crossorigin src="/TNN3.0/assets/index-L-hP4s6n.js"></script>
     <link rel="stylesheet" crossorigin href="/TNN3.0/assets/index-tn0RQdqM.css">
   </head>
