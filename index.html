@@ -53,6 +53,20 @@
     history.replaceState(null, null, redirectUrl);
   }
 </script>
+<script>
+  // Redirect clean URLs → hash URLs for GitHub Pages
+  (function () {
+    const path = window.location.pathname;
+    const base = "/TNN3.0/";
+    const isIndex = path === base || path === base.slice(0, -1);
+
+    // If it's a subroute like /TNN3.0/admin
+    if (!isIndex && path.startsWith(base)) {
+      const newUrl = base + "#/" + path.replace(base, "");
+      window.location.replace(newUrl);
+    }
+  })();
+</script>
     <script type="module" crossorigin src="/TNN3.0/assets/index-CfwBDfjO.js"></script>
     <link rel="stylesheet" crossorigin href="/TNN3.0/assets/index-tn0RQdqM.css">
   </head>
